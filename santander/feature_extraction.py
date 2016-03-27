@@ -1,12 +1,10 @@
-import numpy as np
+import re
 import pandas as pd
-
-from math import log10
+from sklearn.base import BaseEstimator, TransformerMixin
 from statsmodels.distributions.empirical_distribution import ECDF
 
-from sklearn.base import BaseEstimator
 
-class Featurizer(BaseEstimator):
+class Featurizer(BaseEstimator, TransformerMixin):
 
     def __init__(self):
         return None
@@ -128,3 +126,62 @@ class Featurizer(BaseEstimator):
         print "Dropped %d features due to no variation" % nct
         print "Introduced %d features" % (wide_customer.shape[1]-(self.customer.shape[1]-nct))
         return wide_customer
+
+
+class BOW(BaseEstimator, TransformerMixin):
+    """
+    Bag-of-words on column names
+    """
+
+    def __init__(self):
+        self.vocabulary_ = []
+
+    def fit(self, X, y=None):
+        # seem to be meaningful words in the column names
+        vocab = []
+        for col in X.columns:
+
+            # replace digits with nothing
+            col = re.sub('\d', '', col)
+            # parse column name
+            words = col.split('_')
+
+            # add words to bag
+            for w in words:
+                # filter out 'var' -- not meaningful
+                not_var = re.search('^var', w) is None
+
+                if w is not '' and not_var:
+                    vocab.append(w)
+
+        vocab = list(set(vocab))
+        print "BOW %d words" % len(vocab)
+        self.vocabulary_ = vocab
+
+        return self
+
+    def transform(self, X):
+        word_count = {}
+        for i, one in X.iterrows():
+
+            # for this customer, which positive (nonzero) features are present?
+            features = list(one.iloc[one.nonzero()[0]].index)
+
+            # look for any of the words in vocab
+            flags = {}
+            for word in self.vocabulary_:
+
+                col_with_word = [feat for feat in features if re.search(word, feat)]
+                if len(col_with_word) > 0:
+                    # count number of matches with this word
+                    flags.update({ word: len(col_with_word) })
+
+            # a row to the dictionary
+            word_count.update({ i: flags })
+
+        # bond together in a data frame
+        bow = pd.DataFrame(word_count).transpose()
+        # fill in NaN
+        bow = bow.fillna(0)
+
+        return bow

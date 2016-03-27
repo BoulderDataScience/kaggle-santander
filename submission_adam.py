@@ -2,10 +2,9 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
-from santander.utils import ColumnDropper
-from santander.utils import ZERO_VARIANCE_COLUMNS, CORRELATED_COLUMNS
-from santander.PipeFeat import Featurizer
-import santander.read_customer as rc
+from santander.preprocessing import ColumnDropper
+from santander.preprocessing import CORRELATED_COLUMNS
+from santander.feature_extraction import Featurizer, BOW
 
 # read in both sets of data
 train = pd.read_csv('data/train.csv')
@@ -26,7 +25,7 @@ all_obs = all_obs.drop('ID', 1)
 all_obs.reset_index(drop=True, inplace=True)
 
 # combine spanish bag of words
-spanish = rc.combine_spanish(all_obs)
+spanish = BOW().fit(all_obs).transform(all_obs)
 all_obs = pd.concat([all_obs, spanish], 1)
 
 # initialize pipeline
@@ -62,5 +61,5 @@ xgb = xgb.fit(X_train, y_train, eval_set=[(X_train, y_train)], eval_metric='auc'
 
 y_pred = xgb.predict_proba(X_test)
 submission = pd.DataFrame({'ID': ID_test, 'TARGET': y_pred[:, 1]})
-submission.to_csv('submission.csv', index=False)
-print 'Wrote submission.csv'
+submission.to_csv('submission_adam.csv', index=False)
+print 'Wrote submission_adam.csv'

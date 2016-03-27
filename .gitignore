@@ -57,6 +57,7 @@ docs/_build/
 target/
 
 # misc
+*.csv
 .ipynb_checkpoints
 .DS_Store
 .idea
